@@ -171,7 +171,7 @@ protected:
 
 public:
 
-	typedef MessageList<WM_DESTROY, WM_PAINT, WM_SIZE, WM_DISPLAYCHANGE, WM_GETMINMAXINFO, WM_ACTIVATE, WM_USER> WMList;
+	typedef MessageList<WM_DESTROY, WM_PAINT, WM_SIZE, WM_DISPLAYCHANGE, WM_GETMINMAXINFO, WM_ACTIVATE, WM_USER, WM_MOUSEMOVE> WMList;
 
 
 
@@ -282,6 +282,26 @@ public:
 		}
 		return 0;
 	}
+
+
+
+	template<>
+#if _MSC_FULL_VER > 180040629
+	inline  auto OnMessage<WM_MOUSEMOVE>(HWND window, WPARAM wparam, LPARAM lparam)->LRESULT
+#else
+	inline  auto OnMessage<7>(HWND window, WPARAM wparam, LPARAM lparam)->LRESULT
+#endif
+	{
+		auto pT = static_cast<T*>(this);
+
+		__if_exists (T::OnMouseMoved)
+		{
+			pT->OnMouseMoved(LOWORD(lparam), HIWORD(lparam));
+		}
+		return 0;
+	}
+
+
 
 
 	inline void Render()
@@ -512,13 +532,15 @@ public:
 		m_Factory = CreateD2DFactory();
 		m_Factory->GetDesktopDpi(&m_dpi, &dpiY);
 		HR(CreateDXGIFactory1(__uuidof(m_DxgiFactory), reinterpret_cast<void **>(m_DxgiFactory.GetAddressOf())));
+		auto pT = static_cast<T*>(this);
+
 
 		__if_exists (T::OnWindowLoading)
 		{
-			auto pT = static_cast<T*>(this);
 			pT->OnWindowLoading();
-
 		}
+
+		pT->CreateDeviceIndependentResources();
 	}
 
 	inline void OnWindowOccluded()
