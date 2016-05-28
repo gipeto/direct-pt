@@ -33,13 +33,27 @@ struct PackHelper<C, T, 0, Args...>
 };
 
 
+template<typename _T, int cnt, int N, _T Current, _T ... Next>
+struct PackNthValue
+{
+	auto static constexpr Value = PackNthValue < _T, cnt + 1, N, Next... >::Value;
+};
+
+template<typename _T, int N, _T Current, _T ... Next>
+struct PackNthValue<_T, N, N, Current, Next...>
+{
+	auto static constexpr Value = Current;
+};
+
+
+
 template< DWORD First, DWORD ... Rest>
 struct MessageList
 {
 
 	typedef typename PackHelper<std::tuple, decltype(First), sizeof...(Rest)+1>::type MessageTuple;
 
-	static auto GetAsTuple() -> MessageTuple
+	static auto constexpr GetAsTuple() -> MessageTuple
 	{
 		return MessageTuple(First, Rest...);
 	}
@@ -49,7 +63,16 @@ struct MessageList
 		return{ First, Rest... };
 	}
 
+	template<int n>
+	inline static constexpr DWORD Get()
+	{
+		return PackNthValue<DWORD, 0, n, First, Rest...>::Value;
+	}
+
+
 };
+
+
 
 template<DWORD ClassStyle, DWORD WindowStyle>
 struct WindowStyleTraits
@@ -75,7 +98,7 @@ class DesktopWindowBase
 				// Need constexpr to get the value of the message at compile time
 				// Use message position in message list if not available
 #if _MSC_FULL_VER > 180040629 
-				return pT->OnMessage<std::get<CNT - 1>(MessageList)>(window, wparam, lparam);
+				return pT->OnMessage<T::WMList::Get<CNT - 1>()>(window, wparam, lparam);
 #else
 				return pT->OnMessage<CNT - 1>(window, wparam, lparam);
 #endif		
